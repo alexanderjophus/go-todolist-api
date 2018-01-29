@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,8 +17,6 @@ type ToDoItem struct {
 	Title string
 	Body  string
 }
-
-var items []ToDoItem
 
 var c = cache.New(5*time.Minute, 10*time.Minute)
 
@@ -35,20 +34,17 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 func listHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		strs := make([]string, len(items))
-		for i, v := range items {
-			strs[i] = v.Title
+		strs := make([]string, c.ItemCount())
+		i := 0
+		for _, v := range c.Items() {
+			strs[i] = v.Object.(string)
+			i++
 		}
-		// io.WriteString(w, strings.Join(strs, ", "))
-		d := c.Items()
-		for _, v := range d {
-			io.WriteString(w, v.Object.(string))
-		}
+		io.WriteString(w, strings.Join(strs, ", "))
 
 	case "POST":
 		var toDoItem ToDoItem
 		json.NewDecoder(r.Body).Decode(&toDoItem)
-		items = append(items, toDoItem)
 		c.Add(toDoItem.Title, toDoItem.Body, cache.NoExpiration)
 	}
 }
@@ -66,6 +62,7 @@ func main() {
 		Handler:      r,
 	}
 
+	log.Println("Server running")
 	if err := srv.ListenAndServe(); err != nil {
 		log.Println(err)
 	}
