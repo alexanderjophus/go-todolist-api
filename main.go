@@ -1,61 +1,63 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/satori/go.uuid"
-
+	"github.com/etherlabsio/healthcheck"
 	"github.com/gorilla/mux"
 	"github.com/patrickmn/go-cache"
+	"github.com/satori/go.uuid"
 )
 
-// ToDoItem is something
-type ToDoItem struct {
-	Title string
-	Body  string
+// TodoItem represents the items in the todolist
+type TodoItem struct {
+	ID        uuid.UUID `json:"id"`
+	Title     string    `json:"title"`
+	Body      string    `json:"body"`
+	Completed bool      `json:"completed"`
 }
 
 var c = cache.New(5*time.Minute, 10*time.Minute)
 
-func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	// A very simple health check.
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	log.Println("Healthcheck call")
-
-	// In the future we could report back on the status of our DB, or our cache
-	// (e.g. Redis) by performing a simple PING, and include them in the response.
-	io.WriteString(w, `{"alive": true}`)
-}
-
 func listHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		items := make([]ToDoItem, c.ItemCount())
+		items := make([]TodoItem, c.ItemCount())
 		i := 0
 		for _, v := range c.Items() {
-			items[i] = v.Object.(ToDoItem)
+			items[i] = v.Object.(TodoItem)
 			i++
 		}
 		val, _ := json.Marshal(items)
 		io.WriteString(w, string(val))
 
 	case "POST":
-		var toDoItem ToDoItem
-		json.NewDecoder(r.Body).Decode(&toDoItem)
+		var todoItem TodoItem
+		json.NewDecoder(r.Body).Decode(&todoItem)
 		ID, _ := uuid.NewV4()
-		c.Add(ID.String(), toDoItem, cache.NoExpiration)
+		todoItem.ID = ID
+		c.Add(ID.String(), todoItem, cache.NoExpiration)
 	}
 }
 
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/list", listHandler).Methods("POST", "GET")
-	r.HandleFunc("/health", healthCheckHandler)
+	r.Handle("/health", healthcheck.Handler(
+		healthcheck.WithTimeout(2*time.Second),
+		healthcheck.WithChecker(
+			"database", healthcheck.CheckerFunc(
+				func(ctx context.Context) error {
+					// need to find way of actually testing databases health
+					return nil
+				},
+			)),
+	))
 
 	srv := &http.Server{
 		Addr:         "0.0.0.0:8080",
