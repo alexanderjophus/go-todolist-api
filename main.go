@@ -5,8 +5,9 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 	"time"
+
+	"github.com/satori/go.uuid"
 
 	"github.com/gorilla/mux"
 	"github.com/patrickmn/go-cache"
@@ -34,18 +35,20 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 func listHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		strs := make([]string, c.ItemCount())
+		items := make([]ToDoItem, c.ItemCount())
 		i := 0
 		for _, v := range c.Items() {
-			strs[i] = v.Object.(string)
+			items[i] = v.Object.(ToDoItem)
 			i++
 		}
-		io.WriteString(w, strings.Join(strs, ", "))
+		val, _ := json.Marshal(items)
+		io.WriteString(w, string(val))
 
 	case "POST":
 		var toDoItem ToDoItem
 		json.NewDecoder(r.Body).Decode(&toDoItem)
-		c.Add(toDoItem.Title, toDoItem.Body, cache.NoExpiration)
+		ID, _ := uuid.NewV4()
+		c.Add(ID.String(), toDoItem, cache.NoExpiration)
 	}
 }
 
