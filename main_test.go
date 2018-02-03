@@ -41,4 +41,8 @@ func TestMyHandler(t *testing.T) {
 	if todoItem.BODY != "this is a todo item" {
 		t.Error("expected body 'this is a todo item', got", todoItem.BODY)
 	}
+
+	if todoItem.COMPLETED != false {
+		t.Error("expected item to not be completed, got", todoItem.COMPLETED)
+	}
 }
