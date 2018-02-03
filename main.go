@@ -17,9 +17,9 @@ import (
 // TodoItem represents the items in the todolist
 type TodoItem struct {
 	ID        uuid.UUID `json:"id"`
-	Title     string    `json:"title"`
-	Body      string    `json:"body"`
-	Completed bool      `json:"completed"`
+	TITLE     string    `json:"title"`
+	BODY      string    `json:"body"`
+	COMPLETED bool      `json:"completed"`
 }
 
 var c = cache.New(5*time.Minute, 10*time.Minute)
